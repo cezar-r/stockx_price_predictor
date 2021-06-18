@@ -1,0 +1,102 @@
+
+
+# scrape https://stockx.com/retro-jordans/air-jordan-1?size_types=men 
+	# get list of shoe names
+
+# https://stockx.com/api/products/<shoe-name>?includes=market,360&currency=USD&country=US for size : skuid and release date
+# if no release date, skip
+# https://stockx.com/api/products/8c74d9c7-a951-4867-8a1a-81a4c9413b3d/chart?start_date=all&end_date=2021-06-12&intervals=100&format=highstock&currency=USD&country=US for price data
+
+# get sales data for 2 weeks, 1 week, and same day of release as well as the name and the url for the shoe, per size
+# put data into knn and linear regression model
+
+
+
+def get_names():
+	
+	url = https://stockx.com/retro-jordans/air-jordan-1?size_types=men
+	hint: embedded in html
+
+	return list of names. type arr -> ["/air-jordan-1-retro-high-hyper-royal-smoke-grey"]
+
+
+def get_skuids(json): -> helper function for get_sku_id_and_release_date
+		
+	arr = []
+	for skuid in json:
+		size = json['size']
+		arr.append((size, skuid))
+	return arr
+
+
+def get_sku_id_and_release_date(arr): -> list of shoe names
+
+	url = https://stockx.com/api/products/<shoe-name>?includes=market,360&currency=USD&country=US
+
+	go through each size and add the skuid
+
+
+	'''
+	arr = []
+	for shoe in arr:
+		request url
+
+		new_dict = {}
+		new_dict["shoe_name"] = json['shoe_name']
+		new_dict["release_date"] = json['release_date']
+		if no release date:
+			go to next shoe
+		new_dict["skuids"] = get_skuids(json['children'])
+		arr.append(new_dict)
+
+
+	'''
+
+	return [{shoe_name : "shoe name", release_date : "release date", skuids : [(size, skuid), (size, skuid)]}]
+
+
+
+def get_price_data(json, date, skuid): -> helper function
+	
+	price_two_weeks_before = json['two_weeks'] -> decode epoch to date-time
+	price_one_week_before = 
+	price_release_date = 
+	price_one_week_after = 
+	price_two_weeks_after = 
+	price_one_month_after = 
+	price_two_months_after = 
+	price_six_months_after =
+	prices = [price_two_weeks_before, price_one_week_before, price_release_date, ..., price_six_months_after]
+
+	volume = []
+	for i in range(arr):
+		volume_json = https://stockx.com/api/products/<skuid>/market?currency=USD&country=US&end_date=<date>
+		volume.append(volume_json['deadStockSold']
+
+
+	return (prices, volume)
+
+
+
+def get_price_data(arr): -> dictionary of shoe id's
+	
+	'''
+	for shoe in arr:
+		for size in shoe[skuids]:
+			shoe_size = size[0]
+			skuid = size[1]
+			price_json = request https://stockx.com/api/products/8c74d9c7-a951-4867-8a1a-81a4c9413b3d/chart?start_date=all&end_date=2021-06-12&intervals=100&format=highstock&currency=USD&country=US
+
+			prices, volume = get_price_data(price_json, shoe['release_date'], skuid)
+
+			file write(f'shoe['shoe_name'],shoe_size,prices.join(','),volume.join(','))
+	'''
+
+		
+	write into file: shoe_name,size,price_one_week,price_two_weeks,price_on_release_date,price_one_week_after,price_one_month_after,price_six_months_after
+
+
+
+https://stockx.com/api/content-stack/browse?query=%7B%22title%22:%22browse-retro-jordans-air-jordan-1%22%7D&locale=en-us
+
+https://stockx.com/api/products/8e23f3b5-ed94-45d4-874c-cb83598c42ab/chart?start_date=all&end_date=2021-06-12&intervals=100&format=highstock&currency=USD&country=US
