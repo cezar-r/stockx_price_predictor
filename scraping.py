@@ -5,11 +5,17 @@ import os
 import html
 import time as t
 import random
+import sys
 
 
 def post(url):
-	new_url = 'http://api.scraperapi.com?api_key=c4b692bf2771771db83effe2f3662fe3&url=' + url
-	response = requests.get(new_url)
+	new_url = 'http://api.scraperapi.com?api_key=e9da48dcd2ce48e993b1b254c5ae8b94&url=' + url
+	try:
+		response = requests.get(new_url)
+	except:
+		print('Connection error')
+		return post(url)
+
 	t.sleep(1)
 	return response.text
 
@@ -20,22 +26,41 @@ def _get_shoe_names(shoes):
 	for shoe in items:
 		item = shoe['item']
 		name = item['url'][19:]
-		names.append(name)
+		if 'dunk' in name:
+			print('okok')
+			names.append(name)
 	return names
+
+
+shoe_pages_hash = {'Jordan 1 High' : 1,
+					'Jordan 4' : 1,
+					'Nike Dunk Low' : 3,
+					'Yeezy' : 3}
 
 
 
 def get_shoe_names():
-	url = get_input()
-	html = post(url)
-	print(html)
-	start_index = html.find('id="browse-wrapper"><script type="application/ld+json">')
-	end_index = html.find('</script><script type="application/ld+json">{"@context":"https://schema.org/","@type":"Breadcr')
-	start_index += 55
-	print(start_index)
-	print(end_index)
-	shoes = json.loads(html[start_index: end_index])
-	return _get_shoe_names(shoes)
+	url, shoe_name = get_input()
+	print(url)
+	s = shoe_pages_hash
+	page = 1
+	shoes_arr = []
+	while page <= s[shoe_name]:
+		new_url = url + f'?page={page}'
+		print(new_url)
+		html = post(new_url)
+		# print(html)
+		start_index = html.find('id="browse-wrapper"><script type="application/ld+json">')
+		end_index = html.find('</script><script type="application/ld+json">{"@context":"https://schema.org/","@type":"Breadcr')
+		start_index += 55
+		print(start_index)
+		print(end_index)
+		shoes = json.loads(html[start_index: end_index])
+		print('Fetching list of names')
+		shoes_arr += _get_shoe_names(shoes)
+		page += 1
+		print(f'Finished page {page-1}')
+	return shoes_arr, shoe_name
 
 
 
@@ -43,7 +68,7 @@ def get_input():
 
 	shoe_name_hash = {"Jordan 1 High" : "/retro-jordans/air-jordan-1/high/top-selling",
 				  "Jordan 4" : "/retro-jordans/air-jordan-4/top-selling",
-				  "Nike Dunk Low" : "nike/sb/dunk-low/top-selling",
+				  "Nike Dunk Low" : "/nike/basketball/top-selling",
 				  "Yeezy" : "/adidas/yeezy/top-selling"}
 
 	input_nmbr_hash = {1 : "Jordan 1 High",
@@ -56,13 +81,14 @@ def get_input():
 
 	size_type_hash = {1 : "men",
 					  2 : "women",
-					  3 : "child",
-					  4: "All"}
+					  3 : "child"}
 
-	size_type = int(input("Please select a size type\nMen's[1]\tWomen's[2]\tGrade School[3]\n"))
+	size_type = int(input("Please select a size type\nMen's[1]\tWomen's[2]\tGrade School[3]\tAll[4]\n"))
+	if size_type == 4:
+		return "https://stockx.com" + url_str, input_nmbr_hash[shoe]
 	url_str += f'?size_types={size_type_hash[size_type]}'
 
-	return "https://stockx.com" + url_str
+	return "https://stockx.com" + url_str, input_nmbr_hash[shoe]
 
 
 
@@ -79,28 +105,31 @@ def get_skuids(children):
 
 def get_sku_id_and_release_date(arr):
 	data = []
-	for shoe in arr:
+	for i, shoe in enumerate(arr):
 		new_dict = {}
 		url = 'https://stockx.com/api/products/' + shoe + '?includes=market,360&currency=USD&country=US'
-		'''
-		response = requests.get(url, headers=ua_header)
-		text = json.loads(response.text)
-		print(text)
-		'''
 		text = json.loads(post(url))
 		product = text['Product']
 		shoe_name = product['title']
 		date_dict = product['traits'][-1]
 		release_date = date_dict['value']
-		new_dict[shoe_name] = {}
-		new_dict[shoe_name]['release_date'] = release_date
-		new_dict[shoe_name]['skuids'] = get_skuids(product['children'])
-		data.append(new_dict)
+
+		b = f'Organizing shoe data, {i}/{len(arr)}'
+		sys.stdout.write('\r'+b)
+		try:
+			int(release_date[0])
+			new_dict[shoe_name] = {}
+			new_dict[shoe_name]['release_date'] = release_date
+			new_dict[shoe_name]['skuids'] = get_skuids(product['children'])
+			data.append(new_dict)
+		except:
+			print('\n' + f'shoe with no release date: {shoe}')
+			pass
 	return data
 
 
 
-def price_data(skuid, date, size):
+def price_data(skuid, date, size, retries = 0):
 
 	two_weeks_ago_sales_total = {'sales' : 0, 'sales_total' : 0}
 	one_week_ago_sales_total = {'sales' : 0, 'sales_total' : 0}
@@ -115,14 +144,21 @@ def price_data(skuid, date, size):
 	url = f'https://stockx.com/api/products/{skuid}/chart?start_date=all&end_date={today}&intervals=700&format=highstock&currency=USD&country=US'
 	#print(url)
 
-	text = json.loads(post(url))
+	try:
+		text = json.loads(post(url))
+	except:
+		return price_data(skuid, date, size)
 	if text is None:
 		print('Waiting 10 sec and retrying')
 		t.sleep(10)
 		text = json.loads(post(url))
 		if text is None:
-			print(f'Skipping skuid {skuid}, got too many errors')
-			return [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+			if retries == 10:
+				print('Retried 10 times')
+				return [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+			print(f'Retrying ({retries+1})')
+			retries += 1
+			return price_data(skuid, date, size, retries)
 	try:
 		series = text['series'][0]
 	except TypeError:
@@ -133,6 +169,9 @@ def price_data(skuid, date, size):
 
 		price, time = sale[1], sale[0] / 1000
 		time = datetime.utcfromtimestamp(time)
+
+		if price is None:
+			continue
 
 		if (time + timedelta(days=14)) < datetime.strptime(date, '%Y-%m-%d'):	# two weeks before
 			two_weeks_ago_sales_total['sales'] += 1
@@ -197,8 +236,9 @@ def price_data(skuid, date, size):
 
 
 
-def get_price_data(data_dict):
-
+def get_price_data(data_dict, shoe_type):
+	shoe_type = shoe_type.replace(' ', '_').lower()
+	print(shoe_type)
 	for shoe_dict in data_dict:
 		data_dict = list(shoe_dict.items())[0][1]
 		shoe = list(shoe_dict.items())[0][0]
@@ -209,11 +249,12 @@ def get_price_data(data_dict):
 			print(shoe)
 			print(sales_data)
 			sales_data = [str(i) for i in sales_data]
-			with open(f'data/dunk_mens_data.txt', 'a') as f:
+			with open(f'data/{shoe_type}_more_data.txt', 'a') as f:
 				f.write(','.join(sales_data) + '\n')
-			# write
+	
+
 
 if __name__ == '__main__':
-	shoe_names = get_shoe_names()
+	shoe_names, shoe_type = get_shoe_names()
 	data = get_sku_id_and_release_date(shoe_names)
-	get_price_data(data)
+	get_price_data(data, shoe_type)
